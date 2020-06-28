@@ -1,0 +1,30 @@
+#!/usr/bin/env bash 
+# This script is an experiment in extracting meaning
+# from an existing codebase.
+# The goal of this script is to extract all words
+# used by programmers from source files
+# This means removing the keywords and the 3rd
+# party words.
+# Usage examples:
+# ./word_list ~/src
+# ./word_list ~/src > words.txt
+
+SOURCE_FOLDER=$1
+ALL_SOURCE_CODE_WITHOUT_COMMENTS=temp.txt
+KEYWORDS_FOLDER=./keywords/
+TEMP_FOLDER=temp
+
+# Create temporary folder if it doesn't exist
+mkdir -p $TEMP_FOLDER
+
+# Parse all C++ source files and remove the comments
+g++ -fpreprocessed -dD -E -P -w $SOURCE_FOLDER/**/* > $TEMP_FOLDER/$ALL_SOURCE_CODE_WITHOUT_COMMENTS
+
+# Find all the words in the source files and sort them alphabetically
+grep -o -E '\w+' $TEMP_FOLDER/$ALL_SOURCE_CODE_WITHOUT_COMMENTS |  sort -u -f -o $TEMP_FOLDER/all_words.txt
+
+# Combine all keywords into one file
+cat $KEYWORDS_FOLDER/*.txt > $TEMP_FOLDER/all_keywords.txt
+
+# Remove all the keywords from the word list and output the result
+grep -v -f $TEMP_FOLDER/all_keywords.txt  $TEMP_FOLDER/all_words.txt
