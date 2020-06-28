@@ -10,7 +10,7 @@
 # ./word_list ~/src > words.txt
 
 SOURCE_FOLDER=$1
-ALL_SOURCE_CODE_WITHOUT_COMMENTS=temp.txt
+ALL_SOURCE_CODE_WITHOUT_COMMENTS=all_source_code_without_comments.txt
 KEYWORDS_FOLDER=./keywords/
 TEMP_FOLDER=temp
 
@@ -19,6 +19,12 @@ mkdir -p $TEMP_FOLDER
 
 # Parse all C++ source files and remove the comments
 g++ -fpreprocessed -dD -E -P -w $SOURCE_FOLDER/**/* > $TEMP_FOLDER/$ALL_SOURCE_CODE_WITHOUT_COMMENTS
+
+# Find all #includes in the source files: any line that follows a #include
+grep -o -E -e "\#include \"\w+(\.h|\.hpp)\"" $TEMP_FOLDER/$ALL_SOURCE_CODE_WITHOUT_COMMENTS > $TEMP_FOLDER/all_includes.txt
+
+# Find all full string constants in the source files: anything that is enclosed in " characters
+grep -o -E -e "\"\w+\"" $TEMP_FOLDER/$ALL_SOURCE_CODE_WITHOUT_COMMENTS > $TEMP_FOLDER/all_string_constants.txt
 
 # Find all the words in the source files and sort them alphabetically
 grep -o -E '\w+' $TEMP_FOLDER/$ALL_SOURCE_CODE_WITHOUT_COMMENTS |  sort -u -f -o $TEMP_FOLDER/all_words.txt
