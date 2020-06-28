@@ -5,6 +5,13 @@
 # used by programmers from source files
 # This means removing the keywords and the 3rd
 # party words.
+#
+# Internals:
+# The script outputs intermediate files to the temp/ folder
+# Each intermediate file is copied to temp/last.txt
+# Each step takes the previous last.txt, processes it, and 
+# overwrites last.txt with the new result
+#
 # Usage examples:
 # ./word_list ~/src
 # ./word_list ~/src > words.txt
@@ -14,23 +21,47 @@ ALL_SOURCE_CODE_WITHOUT_COMMENTS=all_source_code_without_comments.txt
 KEYWORDS_FOLDER=./keywords/
 TEMP_FOLDER=temp
 
+# STEP 0: Prepare
 # Create temporary folder if it doesn't exist
 mkdir -p $TEMP_FOLDER
 
+# STEP 1: Remove comments and merge files
 # Parse all C++ source files and remove the comments
-g++ -fpreprocessed -dD -E -P -w $SOURCE_FOLDER/**/* > $TEMP_FOLDER/$ALL_SOURCE_CODE_WITHOUT_COMMENTS
+g++ -fpreprocessed -dD -E -P -w $SOURCE_FOLDER/**/* > $TEMP_FOLDER/all_source_code_without_comments.txt
+cp $TEMP_FOLDER/all_source_code_without_comments.txt $TEMP_FOLDER/last.txt
 
+# STEP 2: write all includes and remove them from source file
 # Find all #includes in the source files: any line that follows a #include
-grep -o -E -e "\#include \"\w+(\.h|\.hpp)\"" $TEMP_FOLDER/$ALL_SOURCE_CODE_WITHOUT_COMMENTS > $TEMP_FOLDER/all_includes.txt
+grep -o -E -e '\#include ' $TEMP_FOLDER/last.txt > $TEMP_FOLDER/all_includes.txt
 
+# Remove all #includes from the source files
+grep -v '\#include ' $TEMP_FOLDER/last.txt > $TEMP_FOLDER/all_source_code_without_comments_and_includes.txt
+cp $TEMP_FOLDER/all_source_code_without_comments_and_includes.txt $TEMP_FOLDER/last.txt
+
+# STEP 3: write all string constants and remove them
 # Find all full string constants in the source files: anything that is enclosed in " characters
-grep -o -E -e "\"\w+\"" $TEMP_FOLDER/$ALL_SOURCE_CODE_WITHOUT_COMMENTS > $TEMP_FOLDER/all_string_constants.txt
+grep -o -E -e '\".*\"' $TEMP_FOLDER/last.txt > $TEMP_FOLDER/all_string_constants.txt
 
+# Remove all full string constants from the source files
+grep -v -E '\".*\"' $TEMP_FOLDER/last.txt > $TEMP_FOLDER/all_source_code_without_comments_and_includes_and_string_constants.txt
+cp $TEMP_FOLDER/all_source_code_without_comments_and_includes_and_string_constants.txt $TEMP_FOLDER/last.txt
+
+# MAIN ACTION: Find all the words
 # Find all the words in the source files and sort them alphabetically
-grep -o -E '\w+' $TEMP_FOLDER/$ALL_SOURCE_CODE_WITHOUT_COMMENTS |  sort -u -f -o $TEMP_FOLDER/all_words.txt
+grep -o -E '\w+' $TEMP_FOLDER/last.txt | sort -u -f -o $TEMP_FOLDER/all_words.txt
+cp $TEMP_FOLDER/all_words.txt $TEMP_FOLDER/last.txt
 
+# POSTPROCESS: remove all keywords
 # Combine all keywords into one file
 cat $KEYWORDS_FOLDER/*.txt > $TEMP_FOLDER/all_keywords.txt
 
-# Remove all the keywords from the word list and output the result
-grep -v -f $TEMP_FOLDER/all_keywords.txt  $TEMP_FOLDER/all_words.txt
+# Remove all the keywords from the list of words and output the result
+grep -v -f $TEMP_FOLDER/all_keywords.txt  $TEMP_FOLDER/last.txt > $TEMP_FOLDER/all_words_except_keywords.txt
+cp $TEMP_FOLDER/all_words_except_keywords.txt $TEMP_FOLDER/last.txt
+
+# Add back all string constants
+cat $TEMP_FOLDER/last.txt $TEMP_FOLDER/all_string_constants.txt > $TEMP_FOLDER/all_words_beside_keywords_with_string_constants.txt
+cp $TEMP_FOLDER/all_words_beside_keywords_with_string_constants.txt $TEMP_FOLDER/last.txt
+
+# DISPLAY: show the final result
+cat $TEMP_FOLDER/last.txt
